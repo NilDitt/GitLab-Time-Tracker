@@ -7,13 +7,9 @@ import {
   formatDuration,
   secondsToHours,
   type ProjectTimeReport,
-  type TimeSummaryGroup
+  type TimeSummaryGroup,
 } from "../lib/gitlab";
-import {
-  GITLAB_CONFIG,
-  PROJECT_PATH,
-  COLORS
-} from "../config/tracker-config";
+import { GITLAB_CONFIG, PROJECT_PATH, COLORS } from "../config/tracker-config";
 import { AreaChart } from "./AreaChart";
 import { DonutChart } from "./DonutChart";
 import { WeeklyStackedBarChart } from "./WeeklyStackedBarChart";
@@ -49,7 +45,7 @@ const DEFAULT_FORM: FormState = {
   apiUrl: GITLAB_CONFIG.API_URL,
   from: defaultFromValue,
   to: defaultToValue,
-  commitMonth: defaultMonthValue
+  commitMonth: defaultMonthValue,
 };
 
 export function TimeTrackerDashboard() {
@@ -69,7 +65,7 @@ export function TimeTrackerDashboard() {
     }
     return base.toLocaleDateString(undefined, {
       month: "long",
-      year: "numeric"
+      year: "numeric",
     });
   }, [report?.commitRange?.from]);
 
@@ -107,23 +103,23 @@ export function TimeTrackerDashboard() {
       {
         title: "Tracked time",
         value: `${totalHours.toFixed(1)}h`,
-        detail: formatDuration(report.summary.totalSeconds)
+        detail: formatDuration(report.summary.totalSeconds),
       },
       {
         title: "Tracked issues",
         value: String(issueCount),
-        detail: "Includes all issues with timelogs."
+        detail: "Includes all issues with timelogs.",
       },
       {
         title: "Timelog entries",
         value: String(timelogCount),
-        detail: "Sum of individual time entries."
+        detail: "Sum of individual time entries.",
       },
       {
         title: "Contributors",
         value: String(contributorCount),
-        detail: "Distinct users who logged time."
-      }
+        detail: "Distinct users who logged time.",
+      },
     ];
     if (report.commitActivity?.length) {
       const commitCount = report.commitActivity.reduce(
@@ -133,7 +129,7 @@ export function TimeTrackerDashboard() {
       cards.push({
         title: "Commits",
         value: String(commitCount),
-        detail: commitMonthLabel ?? "Selected month"
+        detail: commitMonthLabel ?? "Selected month",
       });
     }
     return cards;
@@ -178,7 +174,7 @@ export function TimeTrackerDashboard() {
       label: group.label,
       value: secondsToHours(group.seconds),
       color: COLORS.PRIMARY[index % COLORS.PRIMARY.length],
-      hint: group.hints?.epicUrl
+      hint: group.hints?.epicUrl,
     }));
   }, [report]);
 
@@ -188,12 +184,12 @@ export function TimeTrackerDashboard() {
     }
     const formatter = new Intl.DateTimeFormat(undefined, {
       month: "short",
-      day: "numeric"
+      day: "numeric",
     });
     return report.commitActivity.map((entry) => ({
       date: entry.date,
       count: entry.count,
-      label: formatter.format(new Date(entry.date))
+      label: formatter.format(new Date(entry.date)),
     }));
   }, [report]);
 
@@ -213,22 +209,19 @@ export function TimeTrackerDashboard() {
             label: total.userName,
             username: total.username,
             value: secondsToHours(total.seconds),
-            color
+            color,
           };
         });
       return {
         id: bucket.weekStart,
         label: bucket.label,
         total: secondsToHours(bucket.totalSeconds),
-        segments
+        segments,
       };
     });
   }, [report, userColorMap]);
 
-  const commitChartData = useMemo(
-    () => report?.commitActivity ?? [],
-    [report]
-  );
+  const commitChartData = useMemo(() => report?.commitActivity ?? [], [report]);
 
   const labelStacked = useMemo(() => {
     if (
@@ -254,11 +247,14 @@ export function TimeTrackerDashboard() {
             return {
               label,
               value: hours,
-              color
+              color,
             };
           })
-          .filter((segment): segment is { label: string; value: number; color: string } =>
-            Boolean(segment)
+          .filter(
+            (
+              segment
+            ): segment is { label: string; value: number; color: string } =>
+              Boolean(segment)
           );
 
         const total = segments.reduce((sum, segment) => sum + segment.value, 0);
@@ -269,11 +265,18 @@ export function TimeTrackerDashboard() {
           id: week.weekStart,
           label: week.label,
           total,
-          segments
+          segments,
         };
       })
-      .filter((week): week is { id: string; label: string; total: number; segments: { label: string; value: number; color: string }[] } =>
-        Boolean(week)
+      .filter(
+        (
+          week
+        ): week is {
+          id: string;
+          label: string;
+          total: number;
+          segments: { label: string; value: number; color: string }[];
+        } => Boolean(week)
       );
   }, [report, selectedLabels, labelColorMap]);
 
@@ -285,7 +288,7 @@ export function TimeTrackerDashboard() {
     return report.summary.byState.map((group, index) => ({
       label: group.label,
       value: secondsToHours(group.seconds),
-      color: palette[index % palette.length]
+      color: palette[index % palette.length],
     }));
   }, [report]);
 
@@ -308,7 +311,7 @@ export function TimeTrackerDashboard() {
       const response = await fetch("/api/gitlab", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           projectPath: form.projectPath.trim(),
@@ -316,8 +319,8 @@ export function TimeTrackerDashboard() {
           apiUrl: form.apiUrl.trim(),
           from: form.from || undefined,
           to: form.to || undefined,
-          commitMonth: form.commitMonth || undefined
-        })
+          commitMonth: form.commitMonth || undefined,
+        }),
       });
 
       if (!response.ok) {
@@ -361,7 +364,7 @@ export function TimeTrackerDashboard() {
               onChange={(event) =>
                 setForm((prev) => ({
                   ...prev,
-                  projectPath: event.target.value
+                  projectPath: event.target.value,
                 }))
               }
             />
@@ -425,16 +428,15 @@ export function TimeTrackerDashboard() {
               type="month"
               value={form.commitMonth}
               onChange={(event) =>
-                setForm((prev) => ({ ...prev, commitMonth: event.target.value }))
+                setForm((prev) => ({
+                  ...prev,
+                  commitMonth: event.target.value,
+                }))
               }
             />
           </label>
 
-          <button
-            type="submit"
-            style={styles.submit}
-            disabled={isSubmitting}
-          >
+          <button type="submit" style={styles.submit} disabled={isSubmitting}>
             {isSubmitting ? "Loading…" : "Generate report"}
           </button>
         </form>
@@ -450,7 +452,7 @@ export function TimeTrackerDashboard() {
                 Generated{" "}
                 {new Date(report.generatedAt).toLocaleString(undefined, {
                   dateStyle: "medium",
-                  timeStyle: "short"
+                  timeStyle: "short",
                 })}
               </p>
             </div>
@@ -493,7 +495,9 @@ export function TimeTrackerDashboard() {
                 <h3 style={styles.chartTitle}>Time by contributor</h3>
                 <BarChart data={userChart} maxBars={6} />
               </div>
-              <div style={{ ...styles.chartPanel, ...styles.chartPanelCompact }}>
+              <div
+                style={{ ...styles.chartPanel, ...styles.chartPanelCompact }}
+              >
                 <h3 style={styles.chartTitle}>Epic distribution</h3>
                 <DonutChart data={epicDonut} />
               </div>
@@ -518,7 +522,8 @@ export function TimeTrackerDashboard() {
               </div>
               <div style={{ ...styles.chartPanel, ...styles.chartPanelWide }}>
                 <h3 style={styles.chartTitle}>
-                  Commits per day{commitMonthLabel ? ` (${commitMonthLabel})` : ""}
+                  Commits per day
+                  {commitMonthLabel ? ` (${commitMonthLabel})` : ""}
                 </h3>
                 <CommitActivityChart
                   data={commitChartData}
@@ -542,7 +547,7 @@ export function TimeTrackerDashboard() {
                             ...styles.labelChip,
                             ...(active
                               ? styles.labelChipActive
-                              : styles.labelChipInactive)
+                              : styles.labelChipInactive),
                           }}
                         >
                           <span>{option.label}</span>
@@ -560,7 +565,9 @@ export function TimeTrackerDashboard() {
                   emptyMessage="No labelled activity captured."
                 />
               </div>
-              <div style={{ ...styles.chartPanel, ...styles.chartPanelCompact }}>
+              <div
+                style={{ ...styles.chartPanel, ...styles.chartPanelCompact }}
+              >
                 <h3 style={styles.chartTitle}>Issue workflow</h3>
                 <DonutChart data={stateDonut} />
               </div>
@@ -587,7 +594,9 @@ export function TimeTrackerDashboard() {
                 : "No epic";
               const estimateDisplay =
                 estimateSeconds > 0
-                  ? `${secondsToHours(estimateSeconds).toFixed(2)}h (${formatDuration(estimateSeconds)})`
+                  ? `${secondsToHours(estimateSeconds).toFixed(
+                      2
+                    )}h (${formatDuration(estimateSeconds)})`
                   : "—";
               return (
                 <div key={issue.id} style={styles.tableRow}>
@@ -626,7 +635,8 @@ function reduceSummary(groups: TimeSummaryGroup[]): {
   return groups.map((group) => ({
     label: group.label,
     value: secondsToHours(group.seconds),
-    hint: group.hints?.issueUrl ?? group.hints?.epicUrl ?? group.hints?.username
+    hint:
+      group.hints?.issueUrl ?? group.hints?.epicUrl ?? group.hints?.username,
   }));
 }
 
@@ -637,21 +647,21 @@ const styles: Record<string, CSSProperties> = {
     padding: "2.5rem 1.5rem 4rem",
     maxWidth: "1200px",
     margin: "0 auto",
-    color: "#e2e8f0"
+    color: "#e2e8f0",
   },
   intro: {
     display: "grid",
-    gap: "0.75rem"
+    gap: "0.75rem",
   },
   title: {
     margin: 0,
-    fontSize: "2.5rem"
+    fontSize: "2.5rem",
   },
   subtitle: {
     margin: 0,
     color: "rgba(226, 232, 240, 0.85)",
     maxWidth: "65ch",
-    lineHeight: 1.6
+    lineHeight: 1.6,
   },
   panel: {
     background: "rgba(15, 23, 42, 0.7)",
@@ -660,25 +670,25 @@ const styles: Record<string, CSSProperties> = {
     padding: "1.75rem",
     display: "grid",
     gap: "1.5rem",
-    backdropFilter: "blur(10px)"
+    backdropFilter: "blur(10px)",
   },
   panelTitle: {
     margin: 0,
-    fontSize: "1.35rem"
+    fontSize: "1.35rem",
   },
   form: {
     display: "grid",
-    gap: "1rem"
+    gap: "1rem",
   },
   field: {
     display: "grid",
-    gap: "0.35rem"
+    gap: "0.35rem",
   },
   label: {
     fontSize: "0.85rem",
     textTransform: "uppercase",
     letterSpacing: "0.08em",
-    color: "rgba(148, 163, 184, 0.95)"
+    color: "rgba(148, 163, 184, 0.95)",
   },
   input: {
     padding: "0.75rem 0.9rem",
@@ -686,12 +696,12 @@ const styles: Record<string, CSSProperties> = {
     border: "1px solid rgba(148, 163, 184, 0.3)",
     background: "rgba(15, 23, 42, 0.6)",
     color: "#f8fafc",
-    fontSize: "1rem"
+    fontSize: "1rem",
   },
   rangeRow: {
     display: "flex",
     gap: "1rem",
-    flexWrap: "wrap"
+    flexWrap: "wrap",
   },
   submit: {
     padding: "0.85rem 1.2rem",
@@ -702,7 +712,7 @@ const styles: Record<string, CSSProperties> = {
     fontSize: "1rem",
     background:
       "linear-gradient(90deg, rgba(56, 189, 248, 0.9), rgba(251, 113, 133, 0.9))",
-    color: "#0f172a"
+    color: "#0f172a",
   },
   error: {
     margin: 0,
@@ -710,19 +720,19 @@ const styles: Record<string, CSSProperties> = {
     borderRadius: "0.75rem",
     background: "rgba(248, 113, 113, 0.15)",
     border: "1px solid rgba(248, 113, 113, 0.35)",
-    color: "#fecaca"
+    color: "#fecaca",
   },
   reportHeader: {
     display: "flex",
     flexWrap: "wrap",
     alignItems: "flex-end",
     justifyContent: "space-between",
-    gap: "1rem"
+    gap: "1rem",
   },
   cards: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-    gap: "1rem"
+    gap: "1rem",
   },
   warningBox: {
     padding: "1rem",
@@ -731,20 +741,20 @@ const styles: Record<string, CSSProperties> = {
     background: "rgba(251, 191, 36, 0.12)",
     color: "#facc15",
     display: "grid",
-    gap: "0.5rem"
+    gap: "0.5rem",
   },
   warningTitle: {
     fontWeight: 600,
     textTransform: "uppercase",
     letterSpacing: "0.08em",
-    fontSize: "0.85rem"
+    fontSize: "0.85rem",
   },
   warningList: {
     margin: 0,
     paddingLeft: "1.2rem",
     display: "grid",
     gap: "0.25rem",
-    fontSize: "0.95rem"
+    fontSize: "0.95rem",
   },
   card: {
     background: "rgba(15, 23, 42, 0.6)",
@@ -752,31 +762,31 @@ const styles: Record<string, CSSProperties> = {
     padding: "1.25rem",
     display: "grid",
     gap: "0.5rem",
-    border: "1px solid rgba(148, 163, 184, 0.2)"
+    border: "1px solid rgba(148, 163, 184, 0.2)",
   },
   cardLabel: {
     fontSize: "0.9rem",
     color: "rgba(148, 163, 184, 0.9)",
     textTransform: "uppercase",
-    letterSpacing: "0.05em"
+    letterSpacing: "0.05em",
   },
   cardValue: {
     fontSize: "1.8rem",
-    fontWeight: 700
+    fontWeight: 700,
   },
   cardDetail: {
     fontSize: "0.9rem",
-    color: "rgba(148, 163, 184, 0.9)"
+    color: "rgba(148, 163, 184, 0.9)",
   },
   charts: {
     display: "grid",
-    gap: "1.5rem"
+    gap: "1.5rem",
   },
   chartRow: {
     display: "grid",
     gap: "1.5rem",
     gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-    alignItems: "stretch"
+    alignItems: "stretch",
   },
   chartPanel: {
     display: "grid",
@@ -787,24 +797,24 @@ const styles: Record<string, CSSProperties> = {
     border: "1px solid rgba(148, 163, 184, 0.18)",
     padding: "1.25rem",
     position: "relative",
-    overflow: "hidden"
+    overflow: "hidden",
   },
   chartPanelCompact: {
-    justifyItems: "center"
+    justifyItems: "center",
   },
   chartPanelWide: {
     boxShadow: "0 20px 45px rgba(15, 23, 42, 0.35)",
-    minHeight: "260px"
+    minHeight: "260px",
   },
   chartTitle: {
     margin: 0,
-    fontSize: "1.1rem"
+    fontSize: "1.1rem",
   },
   labelSelector: {
     display: "flex",
     flexWrap: "wrap",
     gap: "0.5rem",
-    marginBottom: "0.75rem"
+    marginBottom: "0.75rem",
   },
   labelChip: {
     display: "inline-flex",
@@ -815,30 +825,30 @@ const styles: Record<string, CSSProperties> = {
     padding: "0.35rem 0.8rem",
     fontSize: "0.85rem",
     cursor: "pointer",
-    transition: "all 0.2s ease"
+    transition: "all 0.2s ease",
   },
   labelChipActive: {
     background: "rgba(56, 189, 248, 0.18)",
     borderColor: "rgba(56, 189, 248, 0.5)",
-    color: "#38bdf8"
+    color: "#38bdf8",
   },
   labelChipInactive: {
     background: "rgba(15, 23, 42, 0.5)",
     borderColor: "rgba(148, 163, 184, 0.25)",
-    color: "rgba(226, 232, 240, 0.85)"
+    color: "rgba(226, 232, 240, 0.85)",
   },
   labelChipMetric: {
     fontVariantNumeric: "tabular-nums",
-    color: "rgba(148, 163, 184, 0.9)"
+    color: "rgba(148, 163, 184, 0.9)",
   },
   issueTable: {
     display: "grid",
     gap: "0.75rem",
-    marginTop: "1.5rem"
+    marginTop: "1.5rem",
   },
   tableTitle: {
     margin: 0,
-    fontSize: "1.1rem"
+    fontSize: "1.1rem",
   },
   tableHead: {
     display: "flex",
@@ -849,7 +859,7 @@ const styles: Record<string, CSSProperties> = {
     fontSize: "0.85rem",
     textTransform: "uppercase",
     letterSpacing: "0.06em",
-    color: "rgba(148, 163, 184, 0.9)"
+    color: "rgba(148, 163, 184, 0.9)",
   },
   tableRow: {
     display: "flex",
@@ -857,14 +867,14 @@ const styles: Record<string, CSSProperties> = {
     padding: "0.85rem 0.75rem",
     borderRadius: "0.6rem",
     background: "rgba(15, 23, 42, 0.6)",
-    border: "1px solid rgba(148, 163, 184, 0.15)"
+    border: "1px solid rgba(148, 163, 184, 0.15)",
   },
   link: {
     color: "#38bdf8",
-    textDecoration: "none"
+    textDecoration: "none",
   },
   meta: {
     margin: 0,
-    color: "rgba(148, 163, 184, 0.95)"
-  }
+    color: "rgba(148, 163, 184, 0.95)",
+  },
 };
