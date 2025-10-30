@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import { BarChart } from "./BarChart";
 import {
@@ -29,16 +29,26 @@ interface FormState {
 }
 
 const today = new Date();
+
+const formatDateInput = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 const defaultMonthValue = `${today.getFullYear()}-${String(
   today.getMonth() + 1
 ).padStart(2, "0")}`;
+const defaultFromValue = formatDateInput(new Date(today.getFullYear(), 9, 5));
+const defaultToValue = formatDateInput(today);
 
 const DEFAULT_FORM: FormState = {
   projectPath: PROJECT_PATH,
   token: GITLAB_CONFIG.TOKEN,
   apiUrl: GITLAB_CONFIG.API_URL,
-  from: "",
-  to: "",
+  from: defaultFromValue,
+  to: defaultToValue,
   commitMonth: defaultMonthValue
 };
 
@@ -47,6 +57,7 @@ export function TimeTrackerDashboard() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [report, setReport] = useState<ProjectTimeReport | null>(null);
+  const [selectedLabels, setSelectedLabels] = useState<string[]>([]);
 
   const commitMonthLabel = useMemo(() => {
     if (!report?.commitRange?.from) {
@@ -61,6 +72,25 @@ export function TimeTrackerDashboard() {
       year: "numeric"
     });
   }, [report?.commitRange?.from]);
+
+  const labelOptions = report?.summary.byLabel ?? [];
+
+  useEffect(() => {
+    if (!labelOptions.length) {
+      setSelectedLabels([]);
+      return;
+    }
+    setSelectedLabels((prev) => {
+      const available = new Set(labelOptions.map((group) => group.label));
+      const filtered = prev.filter((label) => available.has(label));
+      if (filtered.length) {
+        return filtered;
+      }
+      return labelOptions
+        .slice(0, Math.min(4, labelOptions.length))
+        .map((group) => group.label);
+    });
+  }, [labelOptions]);
 
   const summaryCards = useMemo(() => {
     if (!report) {
@@ -125,6 +155,15 @@ export function TimeTrackerDashboard() {
     return map;
   }, [report?.summary.byUser]);
 
+  const labelColorMap = useMemo(() => {
+    const palette = [...COLORS.PRIMARY, ...COLORS.TEAM];
+    const map = new Map<string, string>();
+    (report?.summary.byLabel ?? []).forEach((group, index) => {
+      map.set(group.label, palette[index % palette.length]);
+    });
+    return map;
+  }, [report?.summary.byLabel]);
+
   const issueChart = useMemo(
     () => reduceSummary(report?.summary.byIssue ?? []),
     [report?.summary.byIssue]
@@ -144,16 +183,17 @@ export function TimeTrackerDashboard() {
   }, [report]);
 
   const timeline = useMemo(() => {
-    if (!report || !report.summary.byDate.length) {
+    if (!report || !report.commitActivity?.length) {
       return [];
     }
     const formatter = new Intl.DateTimeFormat(undefined, {
       month: "short",
       day: "numeric"
     });
-    return report.summary.byDate.map((entry) => ({
-      label: formatter.format(new Date(entry.date)),
-      value: secondsToHours(entry.seconds)
+    return report.commitActivity.map((entry) => ({
+      date: entry.date,
+      count: entry.count,
+      label: formatter.format(new Date(entry.date))
     }));
   }, [report]);
 
@@ -177,8 +217,8 @@ export function TimeTrackerDashboard() {
           };
         });
       return {
+        id: bucket.weekStart,
         label: bucket.label,
-        weekStart: bucket.weekStart,
         total: secondsToHours(bucket.totalSeconds),
         segments
       };
@@ -190,10 +230,52 @@ export function TimeTrackerDashboard() {
     [report]
   );
 
-  const labelChart = useMemo(
-    () => reduceSummary(report?.summary.byLabel ?? []),
-    [report]
-  );
+  const labelStacked = useMemo(() => {
+    if (
+      !report ||
+      !report.summary.weeklyLabelBreakdown.length ||
+      !selectedLabels.length
+    ) {
+      return [];
+    }
+    const fallbackPalette = [...COLORS.PRIMARY, ...COLORS.TEAM];
+    return report.summary.weeklyLabelBreakdown
+      .map((week) => {
+        const segments = selectedLabels
+          .map((label, index) => {
+            const entry = week.totals.find((item) => item.label === label);
+            const hours = secondsToHours(entry?.seconds ?? 0);
+            if (hours <= 0) {
+              return null;
+            }
+            const color =
+              labelColorMap.get(label) ??
+              fallbackPalette[index % fallbackPalette.length];
+            return {
+              label,
+              value: hours,
+              color
+            };
+          })
+          .filter((segment): segment is { label: string; value: number; color: string } =>
+            Boolean(segment)
+          );
+
+        const total = segments.reduce((sum, segment) => sum + segment.value, 0);
+        if (!segments.length || total === 0) {
+          return null;
+        }
+        return {
+          id: week.weekStart,
+          label: week.label,
+          total,
+          segments
+        };
+      })
+      .filter((week): week is { id: string; label: string; total: number; segments: { label: string; value: number; color: string }[] } =>
+        Boolean(week)
+      );
+  }, [report, selectedLabels, labelColorMap]);
 
   const stateDonut = useMemo(() => {
     if (!report || !report.summary.byState.length) {
@@ -206,6 +288,15 @@ export function TimeTrackerDashboard() {
       color: palette[index % palette.length]
     }));
   }, [report]);
+
+  const toggleLabel = (label: string) => {
+    setSelectedLabels((prev) => {
+      if (prev.includes(label)) {
+        return prev.filter((item) => item !== label);
+      }
+      return [...prev, label];
+    });
+  };
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -409,7 +500,7 @@ export function TimeTrackerDashboard() {
             </div>
             <div style={styles.chartRow}>
               <div style={{ ...styles.chartPanel, ...styles.chartPanelWide }}>
-                <h3 style={styles.chartTitle}>Timeline</h3>
+                <h3 style={styles.chartTitle}>Commits per day timeline</h3>
                 <AreaChart data={timeline} />
               </div>
               <div style={{ ...styles.chartPanel, ...styles.chartPanelWide }}>
@@ -419,8 +510,11 @@ export function TimeTrackerDashboard() {
             </div>
             <div style={styles.chartRow}>
               <div style={{ ...styles.chartPanel, ...styles.chartPanelWide }}>
-                <h3 style={styles.chartTitle}>Weekly team load</h3>
-                <WeeklyStackedBarChart data={weeklyStacked} />
+                <h3 style={styles.chartTitle}>Weekly hours by contributor</h3>
+                <WeeklyStackedBarChart
+                  data={weeklyStacked}
+                  emptyMessage="Collect some timelogs to view weekly load."
+                />
               </div>
               <div style={{ ...styles.chartPanel, ...styles.chartPanelWide }}>
                 <h3 style={styles.chartTitle}>
@@ -434,8 +528,37 @@ export function TimeTrackerDashboard() {
             </div>
             <div style={styles.chartRow}>
               <div style={styles.chartPanel}>
-                <h3 style={styles.chartTitle}>Focus by label</h3>
-                <BarChart data={labelChart} maxBars={8} />
+                <h3 style={styles.chartTitle}>Focus by label (per person)</h3>
+                {labelOptions.length ? (
+                  <div style={styles.labelSelector}>
+                    {labelOptions.map((option) => {
+                      const active = selectedLabels.includes(option.label);
+                      return (
+                        <button
+                          key={option.label}
+                          type="button"
+                          onClick={() => toggleLabel(option.label)}
+                          style={{
+                            ...styles.labelChip,
+                            ...(active
+                              ? styles.labelChipActive
+                              : styles.labelChipInactive)
+                          }}
+                        >
+                          <span>{option.label}</span>
+                          <span style={styles.labelChipMetric}>
+                            {secondsToHours(option.seconds).toFixed(1)}h
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : null}
+                <WeeklyStackedBarChart
+                  data={labelStacked}
+                  valueLabel="h"
+                  emptyMessage="No labelled activity captured."
+                />
               </div>
               <div style={{ ...styles.chartPanel, ...styles.chartPanelCompact }}>
                 <h3 style={styles.chartTitle}>Issue workflow</h3>
@@ -450,6 +573,7 @@ export function TimeTrackerDashboard() {
               <span style={{ flex: 2 }}>Issue</span>
               <span style={{ flex: 1 }}>Epic</span>
               <span style={{ flex: 1 }}>Entries</span>
+              <span style={{ flex: 1 }}>Estimate</span>
               <span style={{ flex: 1 }}>Tracked</span>
             </div>
             {report.issues.map((issue) => {
@@ -457,9 +581,14 @@ export function TimeTrackerDashboard() {
                 (acc, log) => acc + log.seconds,
                 0
               );
+              const estimateSeconds = issue.timeEstimate ?? 0;
               const epicLabel = issue.epic
                 ? `${issue.epic.title} (${issue.epic.iid ?? ""})`
                 : "No epic";
+              const estimateDisplay =
+                estimateSeconds > 0
+                  ? `${secondsToHours(estimateSeconds).toFixed(2)}h (${formatDuration(estimateSeconds)})`
+                  : "—";
               return (
                 <div key={issue.id} style={styles.tableRow}>
                   <span style={{ flex: 2 }}>
@@ -474,6 +603,7 @@ export function TimeTrackerDashboard() {
                   </span>
                   <span style={{ flex: 1 }}>{epicLabel}</span>
                   <span style={{ flex: 1 }}>{issue.timelogs.length}</span>
+                  <span style={{ flex: 1 }}>{estimateDisplay}</span>
                   <span style={{ flex: 1 }}>
                     {secondsToHours(totalSeconds).toFixed(2)}h (
                     {formatDuration(totalSeconds)})
@@ -646,7 +776,7 @@ const styles: Record<string, CSSProperties> = {
     display: "grid",
     gap: "1.5rem",
     gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-    alignItems: "start"
+    alignItems: "stretch"
   },
   chartPanel: {
     display: "grid",
@@ -663,11 +793,43 @@ const styles: Record<string, CSSProperties> = {
     justifyItems: "center"
   },
   chartPanelWide: {
-    boxShadow: "0 20px 45px rgba(15, 23, 42, 0.35)"
+    boxShadow: "0 20px 45px rgba(15, 23, 42, 0.35)",
+    minHeight: "260px"
   },
   chartTitle: {
     margin: 0,
     fontSize: "1.1rem"
+  },
+  labelSelector: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "0.5rem",
+    marginBottom: "0.75rem"
+  },
+  labelChip: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "0.4rem",
+    borderRadius: "999px",
+    border: "1px solid transparent",
+    padding: "0.35rem 0.8rem",
+    fontSize: "0.85rem",
+    cursor: "pointer",
+    transition: "all 0.2s ease"
+  },
+  labelChipActive: {
+    background: "rgba(56, 189, 248, 0.18)",
+    borderColor: "rgba(56, 189, 248, 0.5)",
+    color: "#38bdf8"
+  },
+  labelChipInactive: {
+    background: "rgba(15, 23, 42, 0.5)",
+    borderColor: "rgba(148, 163, 184, 0.25)",
+    color: "rgba(226, 232, 240, 0.85)"
+  },
+  labelChipMetric: {
+    fontVariantNumeric: "tabular-nums",
+    color: "rgba(148, 163, 184, 0.9)"
   },
   issueTable: {
     display: "grid",

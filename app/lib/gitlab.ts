@@ -27,6 +27,18 @@ export interface WeeklyUserSummary {
   totalSeconds: number;
 }
 
+export interface LabelUserSummary {
+  label: string;
+  totals: WeeklyUserTotal[];
+  totalSeconds: number;
+}
+
+export interface WeeklyLabelSummary {
+  weekStart: string;
+  label: string;
+  totals: { label: string; seconds: number }[];
+}
+
 export interface CommitActivityDay {
   date: string;
   count: number;
@@ -57,6 +69,7 @@ export interface GitLabIssueTime {
   webUrl: string;
   state: string;
   labels: string[];
+  timeEstimate: number | null;
   epic?: {
     id: string;
     iid?: string | null;
@@ -96,6 +109,8 @@ export interface TimeSummary {
   byState: TimeSummaryGroup[];
   byDate: { date: string; seconds: number }[];
   weeklyByUser: WeeklyUserSummary[];
+  labelByUser: LabelUserSummary[];
+  weeklyLabelBreakdown: WeeklyLabelSummary[];
 }
 
 interface GraphQLIssueNode {
@@ -104,6 +119,7 @@ interface GraphQLIssueNode {
   title: string;
   webUrl: string;
   state: string;
+  timeEstimate: number | null;
   labels: { nodes: Array<{ title: string }> };
   epic?: {
     id: string;
@@ -164,6 +180,7 @@ const ISSUE_TIMELOGS_QUERY = `
           title
           webUrl
           state
+          timeEstimate
           labels(first: 10) {
             nodes {
               title
@@ -315,6 +332,7 @@ function transformIssueNode(
     webUrl: node.webUrl,
     state: node.state,
     labels: node.labels?.nodes?.map((label) => label.title) ?? [],
+    timeEstimate: node.timeEstimate ?? null,
     epic: node.epic
       ? {
           id: node.epic.id,
@@ -371,8 +389,25 @@ function buildTimeSummary(issues: GitLabIssueTime[]): TimeSummary {
       totalSeconds: number;
     }
   >();
+  const labelBuckets = new Map<
+    string,
+    {
+      totalSeconds: number;
+      totals: Map<string, WeeklyUserTotal>;
+    }
+  >();
+  const weeklyLabelBuckets = new Map<
+    string,
+    {
+      weekStart: string;
+      label: string;
+      totals: Map<string, number>;
+    }
+  >();
+  const UNLABELED_KEY = "Unlabeled";
 
   for (const issue of issues) {
+    const issueLabels = issue.labels.length ? issue.labels : [UNLABELED_KEY];
     let issueSeconds = 0;
     for (const timelog of issue.timelogs) {
       totalSeconds += timelog.seconds;
@@ -415,6 +450,38 @@ function buildTimeSummary(issues: GitLabIssueTime[]): TimeSummary {
         aggregate.totalSeconds += timelog.seconds;
         weeklyBuckets.set(weekBucket.key, aggregate);
       }
+
+      for (const label of issueLabels) {
+        const labelBucket =
+          labelBuckets.get(label) ?? {
+            totalSeconds: 0,
+            totals: new Map<string, WeeklyUserTotal>()
+          };
+        labelBucket.totalSeconds += timelog.seconds;
+        const labelUser =
+          labelBucket.totals.get(userKey) ??
+          {
+            userId: timelog.user.id,
+            userName: timelog.user.name,
+            username: timelog.user.username,
+            seconds: 0
+          };
+        labelUser.seconds += timelog.seconds;
+        labelBucket.totals.set(userKey, labelUser);
+        labelBuckets.set(label, labelBucket);
+
+        if (weekBucket) {
+          const weeklyLabelBucket =
+            weeklyLabelBuckets.get(weekBucket.key) ?? {
+              weekStart: weekBucket.start,
+              label: weekBucket.label,
+              totals: new Map<string, number>()
+            };
+          const current = weeklyLabelBucket.totals.get(label) ?? 0;
+          weeklyLabelBucket.totals.set(label, current + timelog.seconds);
+          weeklyLabelBuckets.set(weekBucket.key, weeklyLabelBucket);
+        }
+      }
     }
 
     const issueGroup = byIssue.get(issue.id) ?? {
@@ -448,7 +515,7 @@ function buildTimeSummary(issues: GitLabIssueTime[]): TimeSummary {
     stateGroup.seconds += issueSeconds;
     byState.set(stateKey, stateGroup);
 
-    for (const label of issue.labels) {
+    for (const label of issueLabels) {
       const labelGroup = byLabel.get(label) ?? {
         label,
         seconds: 0
@@ -476,6 +543,24 @@ function buildTimeSummary(issues: GitLabIssueTime[]): TimeSummary {
           (a, b) => b.seconds - a.seconds
         ),
         totalSeconds: bucket.totalSeconds
+      }))
+      .sort((a, b) => a.weekStart.localeCompare(b.weekStart)),
+    labelByUser: Array.from(labelBuckets.entries())
+      .map(([label, bucket]) => ({
+        label,
+        totalSeconds: bucket.totalSeconds,
+        totals: Array.from(bucket.totals.values()).sort(
+          (a, b) => b.seconds - a.seconds
+        )
+      }))
+      .sort((a, b) => b.totalSeconds - a.totalSeconds),
+    weeklyLabelBreakdown: Array.from(weeklyLabelBuckets.values())
+      .map((bucket) => ({
+        weekStart: bucket.weekStart,
+        label: bucket.label,
+        totals: Array.from(bucket.totals.entries())
+          .map(([label, seconds]) => ({ label, seconds }))
+          .sort((a, b) => b.seconds - a.seconds)
       }))
       .sort((a, b) => a.weekStart.localeCompare(b.weekStart))
   };

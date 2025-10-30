@@ -3,38 +3,42 @@
 import { memo, useMemo } from "react";
 import type { CSSProperties } from "react";
 
-export interface WeeklyStackSegment {
+export interface StackedBarSegment {
   label: string;
   username?: string;
   value: number;
   color: string;
 }
 
-export interface WeeklyStackDatum {
+export interface StackedBarDatum {
+  id?: string;
   label: string;
-  weekStart: string;
   total: number;
-  segments: WeeklyStackSegment[];
+  segments: StackedBarSegment[];
 }
 
 interface WeeklyStackedBarChartProps {
-  data: WeeklyStackDatum[];
+  data: StackedBarDatum[];
   decimals?: number;
+  valueLabel?: string;
+  emptyMessage?: string;
 }
 
 const WeeklyStackedBarChartComponent = ({
   data,
-  decimals = 1
+  decimals = 1,
+  valueLabel = "h",
+  emptyMessage = "No data available.",
 }: WeeklyStackedBarChartProps) => {
   const legendEntries = useMemo(() => {
     const unique = new Map<string, { label: string; color: string }>();
-    for (const week of data) {
-      for (const segment of week.segments) {
+    for (const datum of data) {
+      for (const segment of datum.segments) {
         const key = segment.username ?? segment.label;
         if (!unique.has(key)) {
           unique.set(key, {
             label: segment.label,
-            color: segment.color
+            color: segment.color,
           });
         }
       }
@@ -42,42 +46,68 @@ const WeeklyStackedBarChartComponent = ({
     return Array.from(unique.values());
   }, [data]);
 
+  const maxTotal = useMemo(() => {
+    return Math.max(...data.map((datum) => datum.total), 0);
+  }, [data]);
+
+  const calculateBarWidth = (total: number) => {
+    if (maxTotal === 0) return 100;
+    const minWidth = 20; // Minimum width percentage
+    const maxWidth = 100; // Maximum width percentage
+    const ratio = total / maxTotal;
+    return minWidth + (maxWidth - minWidth) * ratio;
+  };
+
   if (!data.length) {
-    return <p style={styles.empty}>Collect some timelogs to view weekly load.</p>;
+    return <p style={styles.empty}>{emptyMessage}</p>;
   }
 
   return (
     <div style={styles.wrapper}>
       <div style={styles.rows}>
-        {data.map((week) => (
-          <div key={week.weekStart} style={styles.row}>
-            <div style={styles.weekLabel}>{week.label}</div>
-            <div style={styles.barTrack}>
-              {week.segments.map((segment) => {
-                const percent =
-                  week.total > 0 ? (segment.value / week.total) * 100 : 0;
-                return (
-                  <div
-                    key={`${week.weekStart}-${segment.label}`}
-                    style={{
-                      ...styles.barSegment,
-                      flexGrow: Math.max(segment.value, 0.15),
-                      backgroundColor: segment.color
-                    }}
-                    title={`${segment.label}: ${segment.value.toFixed(decimals)}h`}
-                  >
-                    {percent > 12 ? (
-                      <span style={styles.segmentValue}>
-                        {segment.value.toFixed(decimals)}
-                      </span>
-                    ) : null}
-                  </div>
-                );
-              })}
+        {data.map((datum, index) => {
+          const barWidth = calculateBarWidth(datum.total);
+          return (
+            <div key={datum.id ?? `${datum.label}-${index}`} style={styles.row}>
+              <div style={styles.itemLabel}>{datum.label}</div>
+              <div
+                style={{
+                  ...styles.barTrack,
+                  width: `${barWidth}%`,
+                  minWidth: "60px", // Ensure readability even for small values
+                }}
+              >
+                {datum.segments.map((segment) => {
+                  const percent =
+                    datum.total > 0 ? (segment.value / datum.total) * 100 : 0;
+                  return (
+                    <div
+                      key={`${datum.label}-${segment.label}`}
+                      style={{
+                        ...styles.barSegment,
+                        flexGrow: Math.max(segment.value, 0.15),
+                        backgroundColor: segment.color,
+                      }}
+                      title={`${segment.label}: ${segment.value.toFixed(
+                        decimals
+                      )}${valueLabel}`}
+                    >
+                      {percent > 12 ? (
+                        <span style={styles.segmentValue}>
+                          {segment.value.toFixed(decimals)}
+                        </span>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={styles.total}>
+                {datum.total.toFixed(decimals)}
+                {valueLabel}
+              </div>
             </div>
-            <div style={styles.total}>{week.total.toFixed(decimals)}h</div>
-          </div>
-        ))}
+          );
+        })}
       </div>
       {legendEntries.length ? (
         <div style={styles.legend}>
@@ -86,7 +116,7 @@ const WeeklyStackedBarChartComponent = ({
               <span
                 style={{
                   ...styles.legendSwatch,
-                  backgroundColor: entry.color
+                  backgroundColor: entry.color,
                 }}
               />
               <span>{entry.label}</span>
@@ -101,28 +131,31 @@ const WeeklyStackedBarChartComponent = ({
 const styles: Record<string, CSSProperties> = {
   wrapper: {
     display: "grid",
-    gap: "1.25rem"
+    gap: "1.25rem",
   },
   rows: {
     display: "grid",
-    gap: "0.85rem"
+    gap: "0.85rem",
   },
   row: {
     display: "grid",
-    gridTemplateColumns: "minmax(120px, 1fr) minmax(0, 6fr) auto",
+    gridTemplateColumns: "minmax(140px, 1fr) minmax(0, 6fr) auto",
     gap: "0.75rem",
-    alignItems: "center"
+    alignItems: "center",
   },
-  weekLabel: {
+  itemLabel: {
     fontWeight: 500,
-    color: "rgba(226, 232, 240, 0.85)"
+    color: "rgba(226, 232, 240, 0.85)",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
   },
   barTrack: {
     display: "flex",
     height: "1.2rem",
     borderRadius: "0.75rem",
     overflow: "hidden",
-    background: "rgba(148, 163, 184, 0.18)"
+    background: "rgba(148, 163, 184, 0.18)",
   },
   barSegment: {
     display: "flex",
@@ -131,37 +164,37 @@ const styles: Record<string, CSSProperties> = {
     fontSize: "0.75rem",
     flexBasis: 0,
     color: "#0f172a",
-    fontWeight: 600
+    fontWeight: 600,
   },
   segmentValue: {
     padding: "0 0.4rem",
-    textShadow: "0 1px 2px rgba(15, 23, 42, 0.35)"
+    textShadow: "0 1px 2px rgba(15, 23, 42, 0.35)",
   },
   total: {
     fontVariantNumeric: "tabular-nums",
-    fontWeight: 600
+    fontWeight: 600,
   },
   legend: {
     display: "flex",
     flexWrap: "wrap",
-    gap: "0.6rem 1rem"
+    gap: "0.6rem 1rem",
   },
   legendItem: {
     display: "flex",
     alignItems: "center",
     gap: "0.5rem",
     fontSize: "0.85rem",
-    color: "rgba(226, 232, 240, 0.9)"
+    color: "rgba(226, 232, 240, 0.9)",
   },
   legendSwatch: {
     width: "0.75rem",
     height: "0.75rem",
-    borderRadius: "0.4rem"
+    borderRadius: "0.4rem",
   },
   empty: {
     fontStyle: "italic",
-    color: "rgba(148, 163, 184, 0.9)"
-  }
+    color: "rgba(148, 163, 184, 0.9)",
+  },
 };
 
 export const WeeklyStackedBarChart = memo(WeeklyStackedBarChartComponent);
