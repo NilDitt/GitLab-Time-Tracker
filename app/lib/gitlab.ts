@@ -48,6 +48,17 @@ export interface WeeklyEpicSummary {
 export interface CommitActivityDay {
   date: string;
   count: number;
+  commits?: CommitInfo[]; // Add optional commits array
+}
+
+export interface CommitInfo {
+  id: string;
+  short_id: string;
+  title: string;
+  message: string;
+  author_name: string;
+  committed_date: string;
+  web_url: string;
 }
 
 export interface CommitRange {
@@ -232,7 +243,7 @@ export async function fetchProjectTimeReport(
   const apiUrl = credentials.apiUrl?.trim() || DEFAULT_GRAPHQL_ENDPOINT;
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    Authorization: `Bearer ${credentials.token}`
+    Authorization: `Bearer ${credentials.token}`,
   };
 
   if (!projectFullPath) {
@@ -244,7 +255,8 @@ export async function fetchProjectTimeReport(
   }
 
   const issues: GitLabIssueTime[] = [];
-  let pageInfo: { hasNextPage: boolean; endCursor: string | null } | null = null;
+  let pageInfo: { hasNextPage: boolean; endCursor: string | null } | null =
+    null;
   let projectMeta: { id: string; name: string; webUrl: string } | null = null;
 
   do {
@@ -257,9 +269,9 @@ export async function fetchProjectTimeReport(
           fullPath: projectFullPath,
           issuesFirst: issuePageSize,
           issuesAfter: pageInfo?.endCursor ?? null,
-          timelogFirst: timelogPageSize
-        }
-      })
+          timelogFirst: timelogPageSize,
+        },
+      }),
     });
 
     if (!response.ok) {
@@ -267,7 +279,8 @@ export async function fetchProjectTimeReport(
       throw new Error(message);
     }
 
-    const payload = (await response.json()) as GraphQLResponse<IssuePagePayload>;
+    const payload =
+      (await response.json()) as GraphQLResponse<IssuePagePayload>;
 
     if (payload.errors?.length) {
       throw new Error(payload.errors.map((err) => err.message).join("; "));
@@ -280,7 +293,7 @@ export async function fetchProjectTimeReport(
     projectMeta = {
       id: payload.data.project.id,
       name: payload.data.project.name,
-      webUrl: payload.data.project.webUrl
+      webUrl: payload.data.project.webUrl,
     };
 
     const currentIssues = payload.data.project.issues.nodes.map((node) =>
@@ -297,7 +310,7 @@ export async function fetchProjectTimeReport(
     project: projectMeta ?? {
       id: "unknown",
       name: projectFullPath,
-      webUrl: ""
+      webUrl: "",
     },
     issues,
     summary,
@@ -305,7 +318,7 @@ export async function fetchProjectTimeReport(
     generatedAt: new Date().toISOString(),
     commitActivity: [],
     commitRange: null,
-    warnings: []
+    warnings: [],
   };
 }
 
@@ -328,8 +341,8 @@ function transformIssueNode(
       user: {
         id: log.user?.id ?? "unknown",
         name: log.user?.name ?? "Unknown",
-        username: log.user?.username ?? "unknown"
-      }
+        username: log.user?.username ?? "unknown",
+      },
     }));
 
   return {
@@ -345,10 +358,10 @@ function transformIssueNode(
           id: node.epic.id,
           iid: node.epic.iid,
           title: node.epic.title,
-          webUrl: node.epic.webUrl
+          webUrl: node.epic.webUrl,
         }
       : null,
-    timelogs
+    timelogs,
   };
 }
 
@@ -381,7 +394,7 @@ function isWithinRange(spentAt: string, range: TimeRangeFilter): boolean {
 
 /**
  * Builds a comprehensive time summary from issues and their timelogs.
- * 
+ *
  * Contributors are automatically discovered from timelogs - no hardcoded user lists needed!
  * The function analyzes all timelogs across all issues and dynamically builds:
  * - byUser: All unique users who logged time (contributors)
@@ -443,7 +456,9 @@ function buildTimeSummary(issues: GitLabIssueTime[]): TimeSummary {
       totalSeconds += timelog.seconds;
       issueSeconds += timelog.seconds;
 
-      const dateKey = timelog.spentAt ? timelog.spentAt.slice(0, 10) : "unknown";
+      const dateKey = timelog.spentAt
+        ? timelog.spentAt.slice(0, 10)
+        : "unknown";
       byDate.set(dateKey, (byDate.get(dateKey) ?? 0) + timelog.seconds);
 
       const userKey = timelog.user.username || timelog.user.id;
@@ -451,30 +466,26 @@ function buildTimeSummary(issues: GitLabIssueTime[]): TimeSummary {
         label: timelog.user.name,
         seconds: 0,
         hints: {
-          username: timelog.user.username
-        }
+          username: timelog.user.username,
+        },
       };
       userGroup.seconds += timelog.seconds;
       byUser.set(userKey, userGroup);
 
       const weekBucket = getWeekBucket(timelog.spentAt);
       if (weekBucket) {
-        const aggregate =
-          weeklyBuckets.get(weekBucket.key) ??
-          {
-            weekStart: weekBucket.start,
-            label: weekBucket.label,
-            totals: new Map<string, WeeklyUserTotal>(),
-            totalSeconds: 0
-          };
-        const userTotals =
-          aggregate.totals.get(userKey) ??
-          {
-            userId: timelog.user.id,
-            userName: timelog.user.name,
-            username: timelog.user.username,
-            seconds: 0
-          };
+        const aggregate = weeklyBuckets.get(weekBucket.key) ?? {
+          weekStart: weekBucket.start,
+          label: weekBucket.label,
+          totals: new Map<string, WeeklyUserTotal>(),
+          totalSeconds: 0,
+        };
+        const userTotals = aggregate.totals.get(userKey) ?? {
+          userId: timelog.user.id,
+          userName: timelog.user.name,
+          username: timelog.user.username,
+          seconds: 0,
+        };
         userTotals.seconds += timelog.seconds;
         aggregate.totals.set(userKey, userTotals);
         aggregate.totalSeconds += timelog.seconds;
@@ -482,31 +493,27 @@ function buildTimeSummary(issues: GitLabIssueTime[]): TimeSummary {
       }
 
       for (const label of issueLabels) {
-        const labelBucket =
-          labelBuckets.get(label) ?? {
-            totalSeconds: 0,
-            totals: new Map<string, WeeklyUserTotal>()
-          };
+        const labelBucket = labelBuckets.get(label) ?? {
+          totalSeconds: 0,
+          totals: new Map<string, WeeklyUserTotal>(),
+        };
         labelBucket.totalSeconds += timelog.seconds;
-        const labelUser =
-          labelBucket.totals.get(userKey) ??
-          {
-            userId: timelog.user.id,
-            userName: timelog.user.name,
-            username: timelog.user.username,
-            seconds: 0
-          };
+        const labelUser = labelBucket.totals.get(userKey) ?? {
+          userId: timelog.user.id,
+          userName: timelog.user.name,
+          username: timelog.user.username,
+          seconds: 0,
+        };
         labelUser.seconds += timelog.seconds;
         labelBucket.totals.set(userKey, labelUser);
         labelBuckets.set(label, labelBucket);
 
         if (weekBucket) {
-          const weeklyLabelBucket =
-            weeklyLabelBuckets.get(weekBucket.key) ?? {
-              weekStart: weekBucket.start,
-              label: weekBucket.label,
-              totals: new Map<string, number>()
-            };
+          const weeklyLabelBucket = weeklyLabelBuckets.get(weekBucket.key) ?? {
+            weekStart: weekBucket.start,
+            label: weekBucket.label,
+            totals: new Map<string, number>(),
+          };
           const current = weeklyLabelBucket.totals.get(label) ?? 0;
           weeklyLabelBucket.totals.set(label, current + timelog.seconds);
           weeklyLabelBuckets.set(weekBucket.key, weeklyLabelBucket);
@@ -517,12 +524,11 @@ function buildTimeSummary(issues: GitLabIssueTime[]): TimeSummary {
       if (weekBucket) {
         const epicKey = issue.epic?.id ?? "unassigned";
         const epicLabel = issue.epic ? issue.epic.title : "No epic";
-        const weeklyEpicBucket =
-          weeklyEpicBuckets.get(weekBucket.key) ?? {
-            weekStart: weekBucket.start,
-            label: weekBucket.label,
-            totals: new Map<string, number>()
-          };
+        const weeklyEpicBucket = weeklyEpicBuckets.get(weekBucket.key) ?? {
+          weekStart: weekBucket.start,
+          label: weekBucket.label,
+          totals: new Map<string, number>(),
+        };
         const current = weeklyEpicBucket.totals.get(epicLabel) ?? 0;
         weeklyEpicBucket.totals.set(epicLabel, current + timelog.seconds);
         weeklyEpicBuckets.set(weekBucket.key, weeklyEpicBucket);
@@ -534,8 +540,8 @@ function buildTimeSummary(issues: GitLabIssueTime[]): TimeSummary {
       seconds: 0,
       hints: {
         issueUrl: issue.webUrl,
-        state: issue.state
-      }
+        state: issue.state,
+      },
     };
     issueGroup.seconds += issueSeconds;
     byIssue.set(issue.id, issueGroup);
@@ -546,8 +552,8 @@ function buildTimeSummary(issues: GitLabIssueTime[]): TimeSummary {
       label: epicLabel,
       seconds: 0,
       hints: {
-        epicUrl: issue.epic?.webUrl ?? undefined
-      }
+        epicUrl: issue.epic?.webUrl ?? undefined,
+      },
     };
     epicGroup.seconds += issueSeconds;
     byEpic.set(epicKey, epicGroup);
@@ -555,7 +561,7 @@ function buildTimeSummary(issues: GitLabIssueTime[]): TimeSummary {
     const stateKey = issue.state || "unknown";
     const stateGroup = byState.get(stateKey) ?? {
       label: stateKey,
-      seconds: 0
+      seconds: 0,
     };
     stateGroup.seconds += issueSeconds;
     byState.set(stateKey, stateGroup);
@@ -563,7 +569,7 @@ function buildTimeSummary(issues: GitLabIssueTime[]): TimeSummary {
     for (const label of issueLabels) {
       const labelGroup = byLabel.get(label) ?? {
         label,
-        seconds: 0
+        seconds: 0,
       };
       labelGroup.seconds += issueSeconds;
       byLabel.set(label, labelGroup);
@@ -587,7 +593,7 @@ function buildTimeSummary(issues: GitLabIssueTime[]): TimeSummary {
         totals: Array.from(bucket.totals.values()).sort(
           (a, b) => b.seconds - a.seconds
         ),
-        totalSeconds: bucket.totalSeconds
+        totalSeconds: bucket.totalSeconds,
       }))
       .sort((a, b) => a.weekStart.localeCompare(b.weekStart)),
     labelByUser: Array.from(labelBuckets.entries())
@@ -596,7 +602,7 @@ function buildTimeSummary(issues: GitLabIssueTime[]): TimeSummary {
         totalSeconds: bucket.totalSeconds,
         totals: Array.from(bucket.totals.values()).sort(
           (a, b) => b.seconds - a.seconds
-        )
+        ),
       }))
       .sort((a, b) => b.totalSeconds - a.totalSeconds),
     weeklyLabelBreakdown: Array.from(weeklyLabelBuckets.values())
@@ -605,7 +611,7 @@ function buildTimeSummary(issues: GitLabIssueTime[]): TimeSummary {
         label: bucket.label,
         totals: Array.from(bucket.totals.entries())
           .map(([label, seconds]) => ({ label, seconds }))
-          .sort((a, b) => b.seconds - a.seconds)
+          .sort((a, b) => b.seconds - a.seconds),
       }))
       .sort((a, b) => a.weekStart.localeCompare(b.weekStart)),
     weeklyEpicBreakdown: Array.from(weeklyEpicBuckets.values())
@@ -614,9 +620,9 @@ function buildTimeSummary(issues: GitLabIssueTime[]): TimeSummary {
         label: bucket.label,
         totals: Array.from(bucket.totals.entries())
           .map(([epic, seconds]) => ({ epic, seconds }))
-          .sort((a, b) => b.seconds - a.seconds)
+          .sort((a, b) => b.seconds - a.seconds),
       }))
-      .sort((a, b) => a.weekStart.localeCompare(b.weekStart))
+      .sort((a, b) => a.weekStart.localeCompare(b.weekStart)),
   };
 }
 
@@ -639,7 +645,9 @@ export function formatDuration(seconds: number): string {
   return `${hours}h ${minutes}m`;
 }
 
-function getWeekBucket(spentAt: string): { key: string; start: string; label: string } | null {
+function getWeekBucket(
+  spentAt: string
+): { key: string; start: string; label: string } | null {
   const timestamp = Date.parse(spentAt);
   if (Number.isNaN(timestamp)) {
     return null;
@@ -649,12 +657,14 @@ function getWeekBucket(spentAt: string): { key: string; start: string; label: st
   return {
     key: start,
     start,
-    label: formatWeekLabel(weekStartDate)
+    label: formatWeekLabel(weekStartDate),
   };
 }
 
 function startOfWeek(date: Date): Date {
-  const start = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const start = new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
+  );
   const day = start.getUTCDay();
   const diff = day === 0 ? -6 : 1 - day;
   start.setUTCDate(start.getUTCDate() + diff);
@@ -668,13 +678,19 @@ function isoDateOnly(date: Date): string {
 function formatWeekLabel(date: Date): string {
   const formatter = new Intl.DateTimeFormat(undefined, {
     month: "short",
-    day: "numeric"
+    day: "numeric",
   });
   return `Week of ${formatter.format(date)}`;
 }
 
 interface RestCommit {
+  id: string;
+  short_id: string;
+  title: string;
+  message: string;
+  author_name: string;
   committed_date: string;
+  web_url: string;
 }
 
 function resolveRestEndpoint(graphqlUrl?: string) {
@@ -705,7 +721,12 @@ export async function fetchCommitActivityByDay(
   const [yearStr, monthStr] = month.split("-");
   const year = Number(yearStr);
   const monthIndex = Number(monthStr) - 1;
-  if (!Number.isInteger(year) || !Number.isInteger(monthIndex) || monthIndex < 0 || monthIndex > 11) {
+  if (
+    !Number.isInteger(year) ||
+    !Number.isInteger(monthIndex) ||
+    monthIndex < 0 ||
+    monthIndex > 11
+  ) {
     throw new Error("Field 'commitMonth' must reference a valid month.");
   }
   const startDate = new Date(Date.UTC(year, monthIndex, 1));
@@ -720,17 +741,20 @@ export async function fetchCommitActivityByDay(
   let page = 1;
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    Authorization: `Bearer ${credentials.token}`
+    Authorization: `Bearer ${credentials.token}`,
   };
 
   const counts = new Map<string, number>();
+  const commitsByDay = new Map<string, CommitInfo[]>();
 
   while (true) {
     const url = `${restBase}/projects/${encodedProject}/repository/commits?since=${encodeURIComponent(
       since
-    )}&until=${encodeURIComponent(until)}&per_page=${perPage}&page=${page}&with_stats=false`;
+    )}&until=${encodeURIComponent(
+      until
+    )}&per_page=${perPage}&page=${page}&with_stats=false`;
     const response = await fetch(url, {
-      headers
+      headers,
     });
 
     if (!response.ok) {
@@ -746,6 +770,19 @@ export async function fetchCommitActivityByDay(
       }
       const dayKey = commit.committed_date.slice(0, 10);
       counts.set(dayKey, (counts.get(dayKey) ?? 0) + 1);
+      
+      // Store commit details by day
+      const existingCommits = commitsByDay.get(dayKey) ?? [];
+      existingCommits.push({
+        id: commit.id,
+        short_id: commit.short_id,
+        title: commit.title,
+        message: commit.message,
+        author_name: commit.author_name,
+        committed_date: commit.committed_date,
+        web_url: commit.web_url,
+      });
+      commitsByDay.set(dayKey, existingCommits);
     }
 
     const nextPage = response.headers.get("x-next-page");
@@ -768,7 +805,8 @@ export async function fetchCommitActivityByDay(
     const key = isoDateOnly(cursor);
     days.push({
       date: key,
-      count: counts.get(key) ?? 0
+      count: counts.get(key) ?? 0,
+      commits: commitsByDay.get(key) ?? [],
     });
   }
 
@@ -777,7 +815,7 @@ export async function fetchCommitActivityByDay(
     range: {
       month,
       from: since,
-      to: until
-    }
+      to: until,
+    },
   };
 }

@@ -1,9 +1,9 @@
 "use client";
 
-import { Fragment, memo, useMemo } from "react";
+import { Fragment, memo, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import { COLORS } from "../config/tracker-config";
-import type { CommitActivityDay } from "../lib/gitlab";
+import type { CommitActivityDay, CommitInfo } from "../lib/gitlab";
 
 interface CommitActivityChartProps {
   data: CommitActivityDay[];
@@ -16,6 +16,11 @@ const CommitActivityChartComponent = ({
   data,
   monthLabel
 }: CommitActivityChartProps) => {
+  const [hoveredCell, setHoveredCell] = useState<{
+    day: CommitActivityDay;
+    x: number;
+    y: number;
+  } | null>(null);
   const prepared = useMemo(() => {
     if (!data.length) {
       return null;
@@ -104,6 +109,17 @@ const CommitActivityChartComponent = ({
                   title={`${cell.date}: ${cell.count} commit${
                     cell.count === 1 ? "" : "s"
                   }`}
+                  onMouseEnter={(e) => {
+                    if (cell.commits && cell.commits.length > 0) {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setHoveredCell({
+                        day: cell,
+                        x: rect.left + rect.width / 2,
+                        y: rect.top - 10
+                      });
+                    }
+                  }}
+                  onMouseLeave={() => setHoveredCell(null)}
                 />
               );
             })}
@@ -113,7 +129,7 @@ const CommitActivityChartComponent = ({
       <div style={styles.legend}>
         <span style={styles.legendLabel}>Less</span>
         <div style={styles.legendScale}>
-          {colorScale.map((color) => (
+          {colorScale.map((color: string) => (
             <span
               key={color}
               style={{
@@ -124,6 +140,76 @@ const CommitActivityChartComponent = ({
           ))}
         </div>
         <span style={styles.legendLabel}>More</span>
+      </div>
+      {hoveredCell && <CommitTooltip hoveredCell={hoveredCell} />}
+    </div>
+  );
+};
+
+interface CommitTooltipProps {
+  hoveredCell: {
+    day: CommitActivityDay;
+    x: number;
+    y: number;
+  };
+}
+
+const CommitTooltip = ({ hoveredCell }: CommitTooltipProps) => {
+  const { day, x, y } = hoveredCell;
+  const { date, count, commits = [] } = day;
+
+  if (count === 0 || commits.length === 0) {
+    return null;
+  }
+
+  const formattedDate = new Date(date).toLocaleDateString(undefined, {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric"
+  });
+
+  return (
+    <div
+      style={{
+        ...styles.tooltip,
+        left: x,
+        top: y,
+        transform: "translateX(-50%) translateY(-100%)"
+      }}
+    >
+      <div style={styles.tooltipHeader}>
+        <strong>{formattedDate}</strong>
+        <span style={styles.tooltipCount}>
+          {count} commit{count === 1 ? "" : "s"}
+        </span>
+      </div>
+      <div style={styles.tooltipCommits}>
+        {commits.slice(0, 5).map((commit) => (
+          <div key={commit.id} style={styles.tooltipCommit}>
+            <div style={styles.tooltipCommitTitle}>
+              <a
+                href={commit.web_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={styles.tooltipCommitLink}
+              >
+                {commit.short_id}
+              </a>
+              <span style={styles.tooltipCommitTitleText}>
+                {commit.title}
+              </span>
+            </div>
+            <div style={styles.tooltipCommitAuthor}>
+              by {commit.author_name}
+            </div>
+          </div>
+        ))}
+        {commits.length > 5 && (
+          <div style={styles.tooltipMore}>
+            + {commits.length - 5} more commit{commits.length - 5 === 1 ? "" : "s"}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -209,6 +295,75 @@ const styles: Record<string, CSSProperties> = {
   empty: {
     fontStyle: "italic",
     color: "rgba(148, 163, 184, 0.9)"
+  },
+  tooltip: {
+    position: "fixed" as const,
+    zIndex: 1000,
+    background: "rgba(15, 23, 42, 0.95)",
+    border: "1px solid rgba(148, 163, 184, 0.2)",
+    borderRadius: "0.5rem",
+    padding: "0.75rem",
+    maxWidth: "320px",
+    fontSize: "0.875rem",
+    color: "#f1f5f9",
+    boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.1)",
+    backdropFilter: "blur(10px)"
+  },
+  tooltipHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "0.5rem",
+    paddingBottom: "0.5rem",
+    borderBottom: "1px solid rgba(148, 163, 184, 0.2)"
+  },
+  tooltipCount: {
+    fontSize: "0.75rem",
+    color: "rgba(148, 163, 184, 0.8)",
+    fontWeight: "normal" as const
+  },
+  tooltipCommits: {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: "0.5rem"
+  },
+  tooltipCommit: {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: "0.25rem"
+  },
+  tooltipCommitTitle: {
+    display: "flex",
+    alignItems: "center",
+    gap: "0.5rem"
+  },
+  tooltipCommitLink: {
+    color: "#60a5fa",
+    textDecoration: "none",
+    fontFamily: "monospace",
+    fontSize: "0.75rem",
+    fontWeight: "bold" as const,
+    flexShrink: 0
+  },
+  tooltipCommitTitleText: {
+    flex: 1,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap" as const,
+    fontSize: "0.8rem"
+  },
+  tooltipCommitAuthor: {
+    fontSize: "0.7rem",
+    color: "rgba(148, 163, 184, 0.7)",
+    marginLeft: "0.25rem"
+  },
+  tooltipMore: {
+    fontSize: "0.75rem",
+    color: "rgba(148, 163, 184, 0.6)",
+    fontStyle: "italic",
+    textAlign: "center" as const,
+    paddingTop: "0.25rem",
+    borderTop: "1px solid rgba(148, 163, 184, 0.1)"
   }
 };
 
