@@ -30,7 +30,7 @@ const DonutChartComponent = ({
   data,
   size = 220,
   innerRadius = 60,
-  legend = true
+  legend = true,
 }: DonutChartProps) => {
   const prepared = useMemo(() => {
     const total = data.reduce((sum, item) => sum + item.value, 0);
@@ -55,12 +55,15 @@ const DonutChartComponent = ({
         color: item.color ?? defaultPalette[index % defaultPalette.length],
         start,
         end,
-        fraction
+        fraction,
       };
     });
 
     const gradientStops = slices
-      .map((slice) => `${slice.color} ${slice.start * 360}deg ${slice.end * 360}deg`)
+      .map(
+        (slice) =>
+          `${slice.color} ${slice.start * 360}deg ${slice.end * 360}deg`
+      )
       .join(", ");
 
     const background = gradientStops
@@ -83,14 +86,14 @@ const DonutChartComponent = ({
           ...styles.pie,
           width: size,
           height: size,
-          background: prepared.background
+          background: prepared.background,
         }}
       >
         <div
           style={{
             ...styles.hole,
             width: safeInnerRadius * 2,
-            height: safeInnerRadius * 2
+            height: safeInnerRadius * 2,
           }}
         />
         <span style={styles.totalLabel}>{prepared.total.toFixed(1)}h</span>
@@ -108,7 +111,7 @@ const DonutChartComponent = ({
               <span
                 style={{
                   ...styles.legendSwatch,
-                  backgroundColor: slice.color
+                  backgroundColor: slice.color,
                 }}
               />
               <span style={styles.legendLabel}>{slice.label}</span>
@@ -127,14 +130,38 @@ const defaultPalette = [
   "#facc15",
   "#4ade80",
   "#a855f7",
-  "#f97316"
+  "#f97316",
+  "#06b6d4",
+  "#ec4899",
+  "#eab308",
+  "#22c55e",
+  "#8b5cf6",
+  "#ea580c",
+  "#0ea5e9",
+  "#f43f5e",
+  "#84cc16",
+  "#10b981",
+  "#7c3aed",
+  "#dc2626",
+  "#0891b2",
+  "#e11d48",
+  "#65a30d",
+  "#059669",
+  "#6366f1",
+  "#b91c1c",
+  "#0e7490",
+  "#be185d",
+  "#4d7c0f",
+  "#047857",
+  "#4f46e5",
+  "#991b1b",
 ] as const;
 
 const styles: Record<string, CSSProperties> = {
   wrapper: {
     display: "grid",
     justifyItems: "center",
-    gap: "1rem"
+    gap: "1rem",
   },
   pie: {
     position: "relative",
@@ -142,25 +169,25 @@ const styles: Record<string, CSSProperties> = {
     overflow: "hidden",
     display: "grid",
     placeItems: "center",
-    filter: "drop-shadow(0 10px 25px rgba(15, 23, 42, 0.45))"
+    filter: "drop-shadow(0 10px 25px rgba(15, 23, 42, 0.45))",
   },
   hole: {
     position: "absolute",
     borderRadius: "50%",
     background: "rgba(15, 23, 42, 0.9)",
-    boxShadow: "inset 0 0 0 1px rgba(148, 163, 184, 0.15)"
+    boxShadow: "inset 0 0 0 1px rgba(148, 163, 184, 0.15)",
   },
   totalLabel: {
     position: "relative",
     zIndex: 1,
     color: "#f8fafc",
     fontSize: "1.25rem",
-    fontWeight: 600
+    fontWeight: 600,
   },
   legend: {
     display: "grid",
     gap: "0.5rem",
-    width: "100%"
+    width: "100%",
   },
   legendItem: {
     display: "grid",
@@ -168,27 +195,27 @@ const styles: Record<string, CSSProperties> = {
     alignItems: "center",
     gap: "0.6rem",
     fontSize: "0.9rem",
-    color: "rgba(226, 232, 240, 0.9)"
+    color: "rgba(226, 232, 240, 0.9)",
   },
   legendSwatch: {
     width: "0.75rem",
     height: "0.75rem",
-    borderRadius: "50%"
+    borderRadius: "50%",
   },
   legendLabel: {
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
-    maxWidth: "100%"
+    maxWidth: "100%",
   },
   legendValue: {
     color: "rgba(148, 163, 184, 0.85)",
-    fontVariantNumeric: "tabular-nums"
+    fontVariantNumeric: "tabular-nums",
   },
   empty: {
     fontStyle: "italic",
-    color: "rgba(148, 163, 184, 0.9)"
-  }
+    color: "rgba(148, 163, 184, 0.9)",
+  },
 };
 
 export const DonutChart = memo(DonutChartComponent);
