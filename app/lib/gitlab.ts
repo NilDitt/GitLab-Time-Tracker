@@ -662,12 +662,15 @@ function getWeekBucket(
 }
 
 function startOfWeek(date: Date): Date {
+  // Set week to start on Tuesday (UTC)
+  // JavaScript getUTCDay(): 0=Sun, 1=Mon, 2=Tue, ...
+  // Number of days since the most recent Tuesday
   const start = new Date(
     Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
   );
   const day = start.getUTCDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  start.setUTCDate(start.getUTCDate() + diff);
+  const daysSinceTuesday = (day - 2 + 7) % 7;
+  start.setUTCDate(start.getUTCDate() - daysSinceTuesday);
   return start;
 }
 
