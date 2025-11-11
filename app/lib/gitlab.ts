@@ -1,3 +1,5 @@
+import { APP_SETTINGS } from "../config/tracker-config";
+
 const DEFAULT_GRAPHQL_ENDPOINT = "https://gitlab.com/api/graphql";
 const DEFAULT_ISSUE_PAGE_SIZE = 20;
 const DEFAULT_TIMELOG_PAGE_SIZE = 100;
@@ -662,15 +664,22 @@ function getWeekBucket(
 }
 
 function startOfWeek(date: Date): Date {
-  // Set week to start on Tuesday (UTC)
+  // Make week start configurable; default to Monday (1)
   // JavaScript getUTCDay(): 0=Sun, 1=Mon, 2=Tue, ...
-  // Number of days since the most recent Tuesday
+  const weekStartDay = (APP_SETTINGS?.WEEK_START_DAY ?? 1) as
+    | 0
+    | 1
+    | 2
+    | 3
+    | 4
+    | 5
+    | 6;
   const start = new Date(
     Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
   );
   const day = start.getUTCDay();
-  const daysSinceTuesday = (day - 2 + 7) % 7;
-  start.setUTCDate(start.getUTCDate() - daysSinceTuesday);
+  const daysSinceStart = (day - weekStartDay + 7) % 7;
+  start.setUTCDate(start.getUTCDate() - daysSinceStart);
   return start;
 }
 

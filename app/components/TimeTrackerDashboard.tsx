@@ -10,7 +10,6 @@ import {
   type TimeSummaryGroup,
 } from "../lib/gitlab";
 import { GITLAB_CONFIG, PROJECT_PATH, COLORS } from "../config/tracker-config";
-import { AreaChart } from "./AreaChart";
 import { DonutChart } from "./DonutChart";
 import TeamWorkTable from "./TeamWorkTable";
 import { WeeklyStackedBarChart } from "./WeeklyStackedBarChart";
@@ -185,21 +184,6 @@ export function TimeTrackerDashboard() {
       value: secondsToHours(group.seconds),
       color: COLORS.PRIMARY[index % COLORS.PRIMARY.length],
       hint: group.hints?.epicUrl,
-    }));
-  }, [report]);
-
-  const timeline = useMemo(() => {
-    if (!report || !report.commitActivity?.length) {
-      return [];
-    }
-    const formatter = new Intl.DateTimeFormat(undefined, {
-      month: "short",
-      day: "numeric",
-    });
-    return report.commitActivity.map((entry) => ({
-      date: entry.date,
-      count: entry.count,
-      label: formatter.format(new Date(entry.date)),
     }));
   }, [report]);
 
@@ -500,86 +484,80 @@ export function TimeTrackerDashboard() {
           ) : null}
 
           <div style={styles.charts}>
-            <div style={styles.chartRow}>
-              <div style={styles.chartPanel}>
-                <h3 style={styles.chartTitle}>Time by contributor</h3>
-                <BarChart data={userChart} maxBars={6} />
+            <div style={styles.columns}>
+              <div style={styles.col}>
+                <div style={styles.chartPanel}>
+                  <h3 style={styles.chartTitle}>Time by contributor</h3>
+                  <BarChart data={userChart} maxBars={6} />
+                </div>
+                <div style={{ ...styles.chartPanel, ...styles.chartPanelWide }}>
+                  <h3 style={styles.chartTitle}>Weekly hours by contributor</h3>
+                  <WeeklyStackedBarChart
+                    data={weeklyStacked}
+                    emptyMessage="Collect some timelogs to view weekly load."
+                  />
+                </div>
+                <div style={{ ...styles.chartPanel, ...styles.chartPanelWide }}>
+                  <h3 style={styles.chartTitle}>
+                    Commits per day heatmap
+                    {commitMonthLabel ? ` (${commitMonthLabel})` : ""}
+                  </h3>
+                  <CommitActivityChart
+                    data={commitChartData}
+                    monthLabel={commitMonthLabel ?? undefined}
+                  />
+                </div>
               </div>
-              <div
-                style={{ ...styles.chartPanel, ...styles.chartPanelCompact }}
-              >
-                <h3 style={styles.chartTitle}>Epic distribution</h3>
-                <DonutChart data={epicDonut} />
-              </div>
-            </div>
-            <div style={styles.chartRow}>
-              <div style={{ ...styles.chartPanel, ...styles.chartPanelWide }}>
-                <h3 style={styles.chartTitle}>Commits per day timeline</h3>
-                <AreaChart data={timeline} />
-              </div>
-              <div style={{ ...styles.chartPanel, ...styles.chartPanelWide }}>
-                <h3 style={styles.chartTitle}>Top issues</h3>
-                <BarChart data={issueChart} maxBars={8} />
-              </div>
-            </div>
-            <div style={styles.chartRow}>
-              <div style={{ ...styles.chartPanel, ...styles.chartPanelWide }}>
-                <h3 style={styles.chartTitle}>Weekly hours by contributor</h3>
-                <WeeklyStackedBarChart
-                  data={weeklyStacked}
-                  emptyMessage="Collect some timelogs to view weekly load."
-                />
-              </div>
-              <div style={{ ...styles.chartPanel, ...styles.chartPanelWide }}>
-                <h3 style={styles.chartTitle}>
-                  Commits per day
-                  {commitMonthLabel ? ` (${commitMonthLabel})` : ""}
-                </h3>
-                <CommitActivityChart
-                  data={commitChartData}
-                  monthLabel={commitMonthLabel ?? undefined}
-                />
-              </div>
-            </div>
-            <div style={styles.chartRow}>
-              <div style={styles.chartPanel}>
-                <h3 style={styles.chartTitle}>Focus by epic (per person)</h3>
-                {epicOptions.length ? (
-                  <div style={styles.labelSelector}>
-                    {epicOptions.map((option) => {
-                      const active = selectedEpics.includes(option.label);
-                      return (
-                        <button
-                          key={option.label}
-                          type="button"
-                          onClick={() => toggleEpic(option.label)}
-                          style={{
-                            ...styles.labelChip,
-                            ...(active
-                              ? styles.labelChipActive
-                              : styles.labelChipInactive),
-                          }}
-                        >
-                          <span>{option.label}</span>
-                          <span style={styles.labelChipMetric}>
-                            {secondsToHours(option.seconds).toFixed(1)}h
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : null}
-                <WeeklyStackedBarChart
-                  data={epicStacked}
-                  valueLabel="h"
-                  emptyMessage="No epic activity captured."
-                />
-              </div>
-              <div
-                style={{ ...styles.chartPanel, ...styles.chartPanelCompact }}
-              >
-                <h3 style={styles.chartTitle}>Issue workflow</h3>
-                <DonutChart data={stateDonut} />
+              <div style={styles.col}>
+                <div
+                  style={{ ...styles.chartPanel, ...styles.chartPanelCompact }}
+                >
+                  <h3 style={styles.chartTitle}>Epic distribution</h3>
+                  <DonutChart data={epicDonut} />
+                </div>
+                <div style={{ ...styles.chartPanel, ...styles.chartPanelWide }}>
+                  <h3 style={styles.chartTitle}>Top issues</h3>
+                  <BarChart data={issueChart} maxBars={8} />
+                </div>
+                <div style={styles.chartPanel}>
+                  <h3 style={styles.chartTitle}>Focus by epic (per person)</h3>
+                  {epicOptions.length ? (
+                    <div style={styles.labelSelector}>
+                      {epicOptions.map((option) => {
+                        const active = selectedEpics.includes(option.label);
+                        return (
+                          <button
+                            key={option.label}
+                            type="button"
+                            onClick={() => toggleEpic(option.label)}
+                            style={{
+                              ...styles.labelChip,
+                              ...(active
+                                ? styles.labelChipActive
+                                : styles.labelChipInactive),
+                            }}
+                          >
+                            <span>{option.label}</span>
+                            <span style={styles.labelChipMetric}>
+                              {secondsToHours(option.seconds).toFixed(1)}h
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                  <WeeklyStackedBarChart
+                    data={epicStacked}
+                    valueLabel="h"
+                    emptyMessage="No epic activity captured."
+                  />
+                </div>
+                <div
+                  style={{ ...styles.chartPanel, ...styles.chartPanelCompact }}
+                >
+                  <h3 style={styles.chartTitle}>Issue workflow</h3>
+                  <DonutChart data={stateDonut} />
+                </div>
               </div>
             </div>
           </div>
@@ -654,12 +632,14 @@ function reduceSummary(groups: TimeSummaryGroup[]): {
 
 const styles: Record<string, CSSProperties> = {
   page: {
-    display: "grid",
-    gap: "1.5rem",
-    padding: "2.5rem 1.5rem 4rem",
-    maxWidth: "1200px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "1rem",
+    padding: "1.25rem 1rem 2rem",
+    maxWidth: "1280px",
     margin: "0 auto",
     color: "#e2e8f0",
+    width: "100%",
   },
   intro: {
     display: "grid",
@@ -677,11 +657,12 @@ const styles: Record<string, CSSProperties> = {
   },
   panel: {
     background: "rgba(15, 23, 42, 0.7)",
-    borderRadius: "1rem",
+    borderRadius: "0.75rem",
     border: "1px solid rgba(148, 163, 184, 0.2)",
-    padding: "1.75rem",
-    display: "grid",
-    gap: "1.5rem",
+    padding: "1rem",
+    display: "flex",
+    flexDirection: "column",
+    gap: "1rem",
     backdropFilter: "blur(10px)",
   },
   panelTitle: {
@@ -742,9 +723,9 @@ const styles: Record<string, CSSProperties> = {
     gap: "1rem",
   },
   cards: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-    gap: "1rem",
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "0.75rem",
   },
   warningBox: {
     padding: "1rem",
@@ -770,11 +751,14 @@ const styles: Record<string, CSSProperties> = {
   },
   card: {
     background: "rgba(15, 23, 42, 0.6)",
-    borderRadius: "0.8rem",
-    padding: "1.25rem",
-    display: "grid",
-    gap: "0.5rem",
+    borderRadius: "0.6rem",
+    padding: "0.9rem",
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.4rem",
     border: "1px solid rgba(148, 163, 184, 0.2)",
+    flex: "1 1 220px",
+    minWidth: "200px",
   },
   cardLabel: {
     fontSize: "0.9rem",
@@ -791,36 +775,56 @@ const styles: Record<string, CSSProperties> = {
     color: "rgba(148, 163, 184, 0.9)",
   },
   charts: {
-    display: "grid",
-    gap: "1.5rem",
+    display: "flex",
+    flexDirection: "column",
+    gap: "1rem",
+  },
+  columns: {
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: "1rem",
+    width: "100%",
+    flexWrap: "wrap",
+  },
+  col: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "1rem",
+    flex: "1 1 0%",
+    minWidth: 0,
   },
   chartRow: {
-    display: "grid",
-    gap: "1.5rem",
-    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "1rem",
     alignItems: "stretch",
   },
   chartPanel: {
-    display: "grid",
-    gap: "0.75rem",
-    alignContent: "start",
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.6rem",
     background: "rgba(15, 23, 42, 0.55)",
-    borderRadius: "0.9rem",
+    borderRadius: "0.75rem",
     border: "1px solid rgba(148, 163, 184, 0.18)",
-    padding: "1.25rem",
+    padding: "0.9rem",
     position: "relative",
     overflow: "hidden",
+    flex: "0 1 auto",
+    minWidth: "280px",
+    width: "100%",
   },
   chartPanelCompact: {
-    justifyItems: "center",
+    alignItems: "center",
   },
   chartPanelWide: {
-    boxShadow: "0 20px 45px rgba(15, 23, 42, 0.35)",
-    minHeight: "260px",
+    boxShadow: "0 12px 28px rgba(15, 23, 42, 0.28)",
+    minHeight: "240px",
+    marginBottom: "0.25rem",
   },
   chartTitle: {
     margin: 0,
-    fontSize: "1.1rem",
+    fontSize: "1rem",
   },
   labelSelector: {
     display: "flex",

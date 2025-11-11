@@ -54,3 +54,8 @@ export const COLORS = {
   ],
   HEATMAP: ["#ebedf0", "#9be9a8", "#40c463", "#30a14e", "#216e39"],
 } as const;
+
+export const APP_SETTINGS = {
+  // Week start day (0=Sunday ... 6=Saturday). Default Monday (1).
+  WEEK_START_DAY: 1,
+} as const;
