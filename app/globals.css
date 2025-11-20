@@ -2,14 +2,15 @@
   color-scheme: light dark;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
-  background-color: #0f1115;
+  background-color: #0f172a; /* Match tracker background */
   color: #f1f5f9;
 }
 
 body {
   margin: 0;
   min-height: 100vh;
-  background: radial-gradient(circle at top, #1f2937, #0f172a 60%, #020617);
+  /* Solid background to match tracker panels to avoid visible contrast above content */
+  background: #0f172a;
   overscroll-behavior: none;
 }
 
