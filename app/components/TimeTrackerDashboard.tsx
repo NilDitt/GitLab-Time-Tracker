@@ -33,11 +33,45 @@ const formatDateInput = (date: Date) => {
   return `${year}-${month}-${day}`;
 };
 
+// Funktion um den letzten Dienstag zu finden
+const getLastTuesday = (referenceDate: Date = new Date()) => {
+  const date = new Date(referenceDate);
+  const dayOfWeek = date.getDay(); // 0 = Sonntag, 1 = Montag, 2 = Dienstag, etc.
+
+  // Wenn heute Dienstag ist (dayOfWeek === 2), dann ist heute der "letzte Dienstag"
+  if (dayOfWeek === 2) {
+    return new Date(date);
+  }
+
+  // Ansonsten gehe zurück zum letzten Dienstag
+  const daysToSubtract = dayOfWeek === 0 ? 5 : // Sonntag: 5 Tage zurück
+    dayOfWeek === 1 ? 6 : // Montag: 6 Tage zurück
+      dayOfWeek - 2; // Andere Tage: entsprechende Tage zurück
+
+  date.setDate(date.getDate() - daysToSubtract);
+  return date;
+};
+
+// Funktion um den nächsten Dienstag zu finden
+const getNextTuesday = (referenceDate: Date = new Date()) => {
+  const date = new Date(referenceDate);
+  const dayOfWeek = date.getDay();
+
+  // Berechne Tage bis zum nächsten Dienstag
+  const daysToAdd = dayOfWeek === 0 ? 2 : // Sonntag: 2 Tage vorwärts
+    dayOfWeek === 1 ? 1 : // Montag: 1 Tag vorwärts
+      dayOfWeek === 2 ? 7 : // Dienstag: 7 Tage vorwärts (nächste Woche)
+        9 - dayOfWeek; // Andere Tage: entsprechende Tage vorwärts
+
+  date.setDate(date.getDate() + daysToAdd);
+  return date;
+};
+
 const defaultMonthValue = `${today.getFullYear()}-${String(
   today.getMonth() + 1
 ).padStart(2, "0")}`;
-const defaultFromValue = formatDateInput(new Date(today.getFullYear(), 9, 5));
-const defaultToValue = formatDateInput(today);
+const defaultFromValue = formatDateInput(getLastTuesday(today));
+const defaultToValue = formatDateInput(getNextTuesday(today));
 
 const DEFAULT_FORM: FormState = {
   projectPath: PROJECT_PATH,
@@ -585,8 +619,8 @@ export function TimeTrackerDashboard() {
               const estimateDisplay =
                 estimateSeconds > 0
                   ? `${secondsToHours(estimateSeconds).toFixed(
-                      2
-                    )}h (${formatDuration(estimateSeconds)})`
+                    2
+                  )}h (${formatDuration(estimateSeconds)})`
                   : "—";
               return (
                 <div key={issue.id} style={styles.tableRow}>
