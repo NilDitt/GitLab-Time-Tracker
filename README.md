@@ -27,15 +27,17 @@ A comprehensive Next.js dashboard for visualizing GitLab project time tracking, 
 
 3. **Configure GitLab access**
 
-   - Edit `app/config/tracker-config.ts`
-   - Update `GITLAB_CONFIG` with your GitLab project details:
-     ```typescript
-     export const GITLAB_CONFIG = {
-       API_URL: "https://gitlab.com/api/graphql",
-       PROJECT_PATH: "your-group/your-project", // e.g. "dhbw-se/se-tinf24b2/gruppe-4/dhubbw"
-       TOKEN: "your-gitlab-token", // you need to give read API Access
-     } as const;
+   - Copy the example environment file:
+     ```bash
+     cp .env.example .env.local
      ```
+   - Open `.env.local` and add your GitLab Personal Access Token:
+     ```env
+     NEXT_PUBLIC_GITLAB_TOKEN=your-gitlab-token-here
+     ```
+     > **Note:** The token requires `read_api` scope.
+
+   - (Optional) Edit `app/config/tracker-config.ts` to update the `PROJECT_PATH` if you are tracking a different project.
 
 4. **Start development server**
 

@@ -14,6 +14,7 @@ import { DonutChart } from "./DonutChart";
 import TeamWorkTable from "./TeamWorkTable";
 import { WeeklyStackedBarChart } from "./WeeklyStackedBarChart";
 import { CommitActivityChart } from "./CommitActivityChart";
+import { EstimateVsSpentChart } from "./EstimateVsSpentChart";
 
 interface FormState {
   projectPath: string;
@@ -320,6 +321,37 @@ export function TimeTrackerDashboard() {
     }));
   }, [report]);
 
+  const estimateVsSpentData = useMemo(() => {
+    if (!report) return [];
+
+    // Filter issues that have either spent time or an estimate
+    const relevantIssues = report.issues.filter(
+      (issue) => (issue.timeEstimate ?? 0) > 0 || issue.timelogs.length > 0
+    );
+
+    // Sort by total activity (spent + estimate) to show most relevant first
+    const sorted = relevantIssues.sort((a, b) => {
+      const aSpent = a.timelogs.reduce((acc, log) => acc + log.seconds, 0);
+      const bSpent = b.timelogs.reduce((acc, log) => acc + log.seconds, 0);
+      const aTotal = (a.timeEstimate ?? 0) + aSpent;
+      const bTotal = (b.timeEstimate ?? 0) + bSpent;
+      return bTotal - aTotal;
+    });
+
+    return sorted.map((issue) => {
+      const spentSeconds = issue.timelogs.reduce(
+        (acc, log) => acc + log.seconds,
+        0
+      );
+      return {
+        label: `#${issue.iid} ${issue.title}`,
+        estimated: secondsToHours(issue.timeEstimate ?? 0),
+        spent: secondsToHours(spentSeconds),
+        hint: issue.webUrl,
+      };
+    });
+  }, [report]);
+
   const toggleEpic = (epic: string) => {
     setSelectedEpics((prev) => {
       if (prev.includes(epic)) {
@@ -541,6 +573,16 @@ export function TimeTrackerDashboard() {
                     monthLabel={commitMonthLabel ?? undefined}
                   />
                 </div>
+                <div
+                  style={{ ...styles.chartPanel, ...styles.chartPanelCompact }}
+                >
+                  <h3 style={styles.chartTitle}>Issue workflow</h3>
+                  <DonutChart data={stateDonut} />
+                </div>
+                <div style={{ ...styles.chartPanel, ...styles.chartPanelWide }}>
+                  <h3 style={styles.chartTitle}>Estimate vs Actual (Top Issues)</h3>
+                  <EstimateVsSpentChart data={estimateVsSpentData} maxBars={8} />
+                </div>
               </div>
               <div style={styles.col}>
                 <div
@@ -585,12 +627,6 @@ export function TimeTrackerDashboard() {
                     valueLabel="h"
                     emptyMessage="No epic activity captured."
                   />
-                </div>
-                <div
-                  style={{ ...styles.chartPanel, ...styles.chartPanelCompact }}
-                >
-                  <h3 style={styles.chartTitle}>Issue workflow</h3>
-                  <DonutChart data={stateDonut} />
                 </div>
               </div>
             </div>

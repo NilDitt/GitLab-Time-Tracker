@@ -1,7 +1,7 @@
 export const GITLAB_CONFIG = {
   API_URL: "https://gitlab.com/api/graphql",
   PROJECT_PATH: "dhbw-se/se-tinf24b2/gruppe-4/dhubbw",
-  TOKEN: "glpat-wI4uIKzLwSIy9zZ_glHa6W86MQp1Oml3ZWdrCw.01.120mx2748",
+  TOKEN: process.env.NEXT_PUBLIC_GITLAB_TOKEN || "",
 } as const;
 
 export const PROJECT_PATH = GITLAB_CONFIG.PROJECT_PATH;
