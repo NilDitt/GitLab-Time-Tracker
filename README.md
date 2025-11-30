@@ -32,9 +32,11 @@ A comprehensive Next.js dashboard for visualizing GitLab project time tracking, 
      cp .env.example .env.local
      ```
    - Open `.env.local` and add your GitLab Personal Access Token:
+
      ```env
      NEXT_PUBLIC_GITLAB_TOKEN=your-gitlab-token-here
      ```
+
      > **Note:** The token requires `read_api` scope.
 
    - (Optional) Edit `app/config/tracker-config.ts` to update the `PROJECT_PATH` if you are tracking a different project.

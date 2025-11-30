@@ -39,7 +39,7 @@ const Chart = ({
       {trimmed.map((item) => {
         const estimatedFraction = maxValue > 0 ? item.estimated / maxValue : 0;
         const spentFraction = maxValue > 0 ? item.spent / maxValue : 0;
-        
+
         return (
           <div key={item.label} style={styles.row}>
             <div style={styles.labelCell}>
@@ -60,10 +60,11 @@ const Chart = ({
                   />
                 </div>
                 <span style={styles.valueText}>
-                  {item.estimated.toFixed(decimals)}{valueLabel} (Est)
+                  {item.estimated.toFixed(decimals)}
+                  {valueLabel} (Est)
                 </span>
               </div>
-              
+
               {/* Spent Bar */}
               <div style={styles.barRow}>
                 <div style={styles.barTrack}>
@@ -71,14 +72,16 @@ const Chart = ({
                     style={{
                       ...styles.barFill,
                       width: `${Math.max(spentFraction * 100, 2)}%`,
-                      background: item.spent > item.estimated && item.estimated > 0 
-                        ? "#fb7185" // Red if over budget
-                        : "#38bdf8", // Blue if under budget
+                      background:
+                        item.spent > item.estimated && item.estimated > 0
+                          ? "#fb7185" // Red if over budget
+                          : "#38bdf8", // Blue if under budget
                     }}
                   />
                 </div>
                 <span style={styles.valueText}>
-                  {item.spent.toFixed(decimals)}{valueLabel} (Act)
+                  {item.spent.toFixed(decimals)}
+                  {valueLabel} (Act)
                 </span>
               </div>
             </div>

@@ -45,9 +45,12 @@ const getLastTuesday = (referenceDate: Date = new Date()) => {
   }
 
   // Ansonsten gehe zurück zum letzten Dienstag
-  const daysToSubtract = dayOfWeek === 0 ? 5 : // Sonntag: 5 Tage zurück
-    dayOfWeek === 1 ? 6 : // Montag: 6 Tage zurück
-      dayOfWeek - 2; // Andere Tage: entsprechende Tage zurück
+  const daysToSubtract =
+    dayOfWeek === 0
+      ? 5 // Sonntag: 5 Tage zurück
+      : dayOfWeek === 1
+      ? 6 // Montag: 6 Tage zurück
+      : dayOfWeek - 2; // Andere Tage: entsprechende Tage zurück
 
   date.setDate(date.getDate() - daysToSubtract);
   return date;
@@ -59,10 +62,14 @@ const getNextTuesday = (referenceDate: Date = new Date()) => {
   const dayOfWeek = date.getDay();
 
   // Berechne Tage bis zum nächsten Dienstag
-  const daysToAdd = dayOfWeek === 0 ? 2 : // Sonntag: 2 Tage vorwärts
-    dayOfWeek === 1 ? 1 : // Montag: 1 Tag vorwärts
-      dayOfWeek === 2 ? 7 : // Dienstag: 7 Tage vorwärts (nächste Woche)
-        9 - dayOfWeek; // Andere Tage: entsprechende Tage vorwärts
+  const daysToAdd =
+    dayOfWeek === 0
+      ? 2 // Sonntag: 2 Tage vorwärts
+      : dayOfWeek === 1
+      ? 1 // Montag: 1 Tag vorwärts
+      : dayOfWeek === 2
+      ? 7 // Dienstag: 7 Tage vorwärts (nächste Woche)
+      : 9 - dayOfWeek; // Andere Tage: entsprechende Tage vorwärts
 
   date.setDate(date.getDate() + daysToAdd);
   return date;
@@ -580,8 +587,13 @@ export function TimeTrackerDashboard() {
                   <DonutChart data={stateDonut} />
                 </div>
                 <div style={{ ...styles.chartPanel, ...styles.chartPanelWide }}>
-                  <h3 style={styles.chartTitle}>Estimate vs Actual (Top Issues)</h3>
-                  <EstimateVsSpentChart data={estimateVsSpentData} maxBars={8} />
+                  <h3 style={styles.chartTitle}>
+                    Estimate vs Actual (Top Issues)
+                  </h3>
+                  <EstimateVsSpentChart
+                    data={estimateVsSpentData}
+                    maxBars={8}
+                  />
                 </div>
               </div>
               <div style={styles.col}>
@@ -655,8 +667,8 @@ export function TimeTrackerDashboard() {
               const estimateDisplay =
                 estimateSeconds > 0
                   ? `${secondsToHours(estimateSeconds).toFixed(
-                    2
-                  )}h (${formatDuration(estimateSeconds)})`
+                      2
+                    )}h (${formatDuration(estimateSeconds)})`
                   : "—";
               return (
                 <div key={issue.id} style={styles.tableRow}>
